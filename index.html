@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a3a5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SHALOM">
+    <link rel="manifest" href="manifest.json">
+    <title>SHALOM</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+    <!-- MENU PRINCIPAL -->
+    <div class="contenedor" id="menuPrincipal">
+        <h1>SHALOM</h1>
+        <p class="subtitulo">Gestión de pedidos de modistería</p>
+        <div id="resumenDia" class="resumen-dia oculto"></div>
+        <div class="botones">
+            <button id="nuevoPedido">📋 Nuevo Pedido</button>
+            <button id="irBuscar">🔍 Buscar Pedido</button>
+            <button id="irCalendario">📅 Calendario</button>
+            <button id="irGarantia" class="btn-garantia-menu">🛡 Registrar Garantía</button>
+            <button id="irCaja" class="btn-caja">💵 Caja del Día</button>
+            <button id="exportarExcel" class="btn-excel">📤 Exportar a Excel</button>
+            <button id="importarExcelBtn" class="btn-importar">📥 Importar desde Excel</button>
+            <input type="file" id="archivoExcel" accept=".xlsx" style="display:none;">
+        </div>
+    </div>
+
+    <!-- FORMULARIO NUEVO / EDITAR PEDIDO -->
+    <div class="contenedor oculto" id="formularioPedido">
+        <button id="volverMenu" type="button">← Volver al menú</button>
+        <h2 id="tituloFormulario">Nuevo Pedido</h2>
+        <h3 id="numeroBolsa">Bolsa #1</h3>
+        <p id="contadorPrendas">Prendas registradas: 0</p>
+        <input id="nombreCliente" type="text" placeholder="Nombre del cliente">
+        <input id="telefonoCliente" type="text" placeholder="Teléfono">
+        <label>Fecha de entrega</label>
+        <input id="fechaEntrega" type="date">
+        <label>Hora de entrega <span class="opcional">(opcional)</span></label>
+        <input id="horaEntrega" type="time">
+        <div class="toggle-urgente-wrap">
+            <label class="toggle-label">
+                <input type="checkbox" id="esUrgente">
+                <span class="toggle-slider"></span>
+                <span class="toggle-texto">⚡ Pedido Urgente</span>
+            </label>
+        </div>
+        <div id="panelUrgente" class="oculto panel-urgente">
+            <h3>⚡ Sobrecargo por Urgencia</h3>
+            <div class="urgente-info" id="urgenteInfo">Selecciona la fecha de entrega para calcular el sobrecargo.</div>
+            <label>Precio de sobrecargo por prenda adelantada</label>
+            <div class="urgente-precio-wrap">
+                <span>$</span>
+                <input id="precioPorPrenda" type="number" value="2000" min="0" step="500" style="width:auto;flex:1;">
+                <span>por prenda</span>
+            </div>
+            <div class="urgente-resumen oculto" id="urgenteResumen">
+                <div class="urgente-fila"><span>Prendas pendientes ese día:</span><strong id="prendasPendientesDia">0</strong></div>
+                <div class="urgente-fila"><span>Precio por prenda:</span><strong id="precioUnitarioMostrar">$2.000</strong></div>
+                <div class="urgente-fila urgente-total"><span>Sobrecargo total:</span><strong id="sobrecargTotal">$0</strong></div>
+            </div>
+        </div>
+        <div id="listaPrendas"></div>
+        <button id="agregarPrenda" type="button">+ Agregar Prenda</button>
+        <h2 id="totalPedido">Total: $0</h2>
+        <p id="totalConSobrecargo" class="oculto total-sobrecargo"></p>
+
+        <div class="abono-wrap">
+            <label>💰 Abono inicial <span class="opcional">(opcional)</span></label>
+            <input id="abonoInicial" type="number" min="0" step="1000" placeholder="Ej: 15000">
+            <div id="resumenAbono" class="resumen-abono oculto">
+                <div class="abono-fila"><span>Total del pedido:</span><strong id="abonoTotal">$0</strong></div>
+                <div class="abono-fila"><span>Abono:</span><strong id="abonoMonto" class="color-verde">$0</strong></div>
+                <div class="abono-fila abono-saldo"><span>Saldo pendiente:</span><strong id="abonoSaldo" class="color-rojo">$0</strong></div>
+            </div>
+        </div>
+
+        <button id="guardarPedido" type="button">💾 Guardar Pedido</button>
+        <div id="mensajeGuardado" class="oculto mensaje-ok"></div>
+    </div>
+
+    <!-- BUSCAR PEDIDO -->
+    <div class="contenedor oculto" id="pantallaBuscar">
+        <button id="volverDesdeBuscar" type="button">← Volver al menú</button>
+        <h2>Buscar Pedido</h2>
+        <input id="campoBusqueda" type="text" placeholder="Buscar por nombre o número de bolsa...">
+        <div id="listaResultados"></div>
+    </div>
+
+    <!-- DETALLE PEDIDO -->
+    <div class="contenedor oculto" id="pantallaDetalle">
+        <button id="volverDesdeDetalle" type="button">← Volver a resultados</button>
+        <div id="contenidoDetalle"></div>
+    </div>
+
+    <!-- CALENDARIO -->
+    <div class="contenedor oculto" id="pantallaCalendario">
+        <button id="volverDesdeCalendario" type="button">← Volver al menú</button>
+        <h2>📅 Calendario de Entregas</h2>
+        <div class="nav-mes">
+            <button id="mesPrevio" type="button">‹</button>
+            <span id="tituloMes"></span>
+            <button id="mesSiguiente" type="button">›</button>
+        </div>
+        <div class="leyenda">
+            <span class="leyenda-item"><span class="leyenda-color rojo"></span> Hoy</span>
+            <span class="leyenda-item"><span class="leyenda-color amarillo"></span> Mañana</span>
+            <span class="leyenda-item"><span class="leyenda-color verde"></span> Próximos días</span>
+            <span class="leyenda-item"><span class="leyenda-color rosado"></span> Vencido</span>
+        </div>
+        <div id="gridCalendario"></div>
+        <div id="pedidosDia" class="oculto">
+            <h3 id="tituloDia"></h3>
+            <div id="listaPedidosDia"></div>
+        </div>
+    </div>
+
+    <!-- PANTALLA GARANTIA -->
+    <div class="contenedor oculto" id="pantallaGarantia">
+        <button id="volverDesdeGarantia" type="button">← Volver al menú</button>
+        <h2>🛡 Registrar Garantía</h2>
+        <div id="garantiaPaso1">
+            <p class="garantia-instruccion">Busca la bolsa original del cliente para vincular la garantía.</p>
+            <input id="busquedaGarantia" type="text" placeholder="Buscar por nombre o número de bolsa...">
+            <div id="resultadosGarantia"></div>
+        </div>
+        <div id="garantiaPaso2" class="oculto">
+            <div id="garantiaBolsaInfo" class="garantia-bolsa-info"></div>
+            <label>Prenda con defecto</label>
+            <select id="garantiaPrendaSelect"></select>
+            <label>Descripción del problema</label>
+            <textarea id="garantiaDescripcion" placeholder="Ej: La cremallera se zafó, el dobladillo quedó torcido..."></textarea>
+            <label>Fecha de entrega de la garantía</label>
+            <input id="garantiaFecha" type="date">
+            <label>Hora de entrega <span class="opcional">(opcional)</span></label>
+            <input id="garantiaHora" type="time">
+            <div class="garantia-valor-badge">🛡 Garantía — Sin costo para el cliente ($0)</div>
+            <button id="guardarGarantia" type="button" class="btn-garantia-guardar">🛡 Registrar Garantía</button>
+            <button id="volverPaso1" type="button" class="btn-volver-paso1">← Buscar otra bolsa</button>
+            <div id="mensajeGarantia" class="oculto mensaje-ok"></div>
+        </div>
+    </div>
+
+    <!-- DETALLE GARANTIA -->
+    <div class="contenedor oculto" id="pantallaDetalleGarantia">
+        <button id="volverDesdeDetalleGarantia" type="button">← Volver</button>
+        <div id="contenidoDetalleGarantia"></div>
+    </div>
+
+    <!-- CAJA DEL DIA -->
+    <div class="contenedor oculto" id="pantallaCaja">
+        <button id="volverDesdeCaja" type="button">← Volver al menú</button>
+        <h2>💵 Caja</h2>
+
+        <!-- Navegación de fechas -->
+        <div class="nav-mes">
+            <button id="cajaDiaAnterior" type="button">‹</button>
+            <span id="cajaTituloDia" class="caja-fecha"></span>
+            <button id="cajaDiaSiguiente" type="button">›</button>
+        </div>
+
+        <!-- Resumen -->
+        <div id="cajaSummary" class="caja-summary">
+            <div class="caja-summary-item ingreso">
+                <span>💰 Ingresos</span>
+                <strong id="cajaIngresoTotal">$0</strong>
+            </div>
+            <div class="caja-summary-item gasto">
+                <span>🧾 Gastos</span>
+                <strong id="cajaGastoTotal">$0</strong>
+            </div>
+            <div class="caja-summary-item balance">
+                <span>📊 Balance</span>
+                <strong id="cajaBalance">$0</strong>
+            </div>
+        </div>
+
+        <!-- Ingresos del día -->
+        <div class="caja-seccion">
+            <h3>💰 Ingresos</h3>
+            <p class="caja-nota">Abonos y pagos registrados automáticamente.</p>
+            <div id="listaIngresos"></div>
+        </div>
+
+        <!-- Gastos del día -->
+        <div class="caja-seccion">
+            <h3>🧾 Gastos del día</h3>
+            <div class="gasto-form">
+                <input id="gastoNombre" type="text" placeholder="Ej: Cremalleras, Hilo, Parches...">
+                <div class="urgente-precio-wrap">
+                    <span>$</span>
+                    <input id="gastoValor" type="number" min="0" step="500" placeholder="Valor" style="width:auto;flex:1;">
+                </div>
+                <button id="agregarGasto" type="button" class="btn-agregar-gasto">+ Agregar Gasto</button>
+            </div>
+            <div id="listaGastos"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
