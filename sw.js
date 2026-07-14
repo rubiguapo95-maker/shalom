@@ -1,25 +1,22 @@
-const CACHE_NAME = "shalom-v1";
-const ARCHIVOS = [
-    "/shalom/",
-    "/shalom/index.html",
-    "/shalom/script.js",
-    "/shalom/style.css",
-    "/shalom/manifest.json",
-    "/shalom/icon-192.png",
-    "/shalom/icon-512.png"
-];
+const CACHE_NAME = "shalom-v2";
 
-// Instalar y cachear archivos
 self.addEventListener("install", function(e){
     e.waitUntil(
         caches.open(CACHE_NAME).then(function(cache){
-            return cache.addAll(ARCHIVOS);
+            return cache.addAll([
+                "./",
+                "./index.html",
+                "./script.js",
+                "./style.css",
+                "./manifest.json",
+                "./icon-192.png",
+                "./icon-512.png"
+            ]);
         })
     );
     self.skipWaiting();
 });
 
-// Activar y limpiar caches viejos
 self.addEventListener("activate", function(e){
     e.waitUntil(
         caches.keys().then(function(keys){
@@ -32,12 +29,11 @@ self.addEventListener("activate", function(e){
     self.clients.claim();
 });
 
-// Responder con cache si no hay internet
 self.addEventListener("fetch", function(e){
     e.respondWith(
         caches.match(e.request).then(function(cached){
             return cached || fetch(e.request).catch(function(){
-                return caches.match("/shalom/index.html");
+                return caches.match("./index.html");
             });
         })
     );
