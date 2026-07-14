@@ -203,5 +203,12 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        if("serviceWorker" in navigator){
+            navigator.serviceWorker.register("/shalom/sw.js")
+                .then(function(){ console.log("SW registrado"); })
+                .catch(function(e){ console.log("SW error:", e); });
+        }
+    </script>
 </body>
 </html>
