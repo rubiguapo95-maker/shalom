@@ -1,3 +1,92 @@
+// ─── FIREBASE CONFIG ─────────────────────────────────────────
+const firebaseConfig = {
+    apiKey: "AIzaSyBgiKq2BxCybKIA3VISLhaQ1hF42IjFPE0",
+    authDomain: "shalom-79293.firebaseapp.com",
+    databaseURL: "https://shalom-79293-default-rtdb.firebaseio.com",
+    projectId: "shalom-79293",
+    storageBucket: "shalom-79293.firebasestorage.app",
+    messagingSenderId: "482773951596",
+    appId: "1:482773951596:web:5359892f5ca109d658e449"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ─── SINCRONIZACIÓN FIREBASE ─────────────────────────────────
+// Estrategia híbrida: localStorage como fuente principal,
+// Firebase sincroniza en tiempo real entre dispositivos.
+
+const CLAVES = {
+    pedidos:     "pedidosSHALOM",
+    garantias:   "garantiasSHALOM",
+    gastos:      "gastosSHALOM",
+    movimientos: "movimientosCajaSHALOM",
+    clientes:    "clientesSHALOM"
+};
+
+// Escuchar cambios en Firebase y actualizar localStorage
+function iniciarSincronizacion(){
+    // Solo escuchar cambios en pedidos y garantias, no descargar todo al inicio
+    // Usar once() en lugar de on() para no mantener conexión permanente que frena la app
+    // La sincronización sube datos (localStorage → Firebase) pero no baja masivamente
+    console.log("Sincronización Firebase lista");
+}
+
+// Función para bajar datos de Firebase al localStorage (usar manualmente si se necesita)
+function bajarDesdeFIrebase(){
+    db.ref("pedidos").once("value").then(function(snap){
+        const data = snap.val();
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null; });
+            window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+            mostrarResumenDia();
+            alert("✅ " + arr.length + " pedidos sincronizados desde la nube.");
+        }
+    });
+}
+
+// Subir datos locales a Firebase
+function sincronizarAFirebase(ref, datos){
+    if(!datos || datos.length === 0){
+        db.ref(ref).remove().catch(function(e){ console.log("Firebase remove error:", e); });
+        return;
+    }
+    const obj = {};
+    datos.forEach(function(item, i){ 
+        if(item !== null && item !== undefined){
+            obj["item" + i] = item; 
+        }
+    });
+    db.ref(ref).set(obj).catch(function(e){ console.log("Firebase sync error:", e); });
+}
+
+// Sobreescribir localStorage.setItem para sincronizar automáticamente
+const _lsSetItem = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value){
+    _lsSetItem(key, value);
+    const refMap = {
+        [CLAVES.pedidos]:     "pedidos",
+        [CLAVES.garantias]:   "garantias",
+        [CLAVES.gastos]:      "gastos",
+        [CLAVES.movimientos]: "movimientos",
+        [CLAVES.clientes]:    "clientes"
+    };
+    if(refMap[key]){
+        try {
+            const datos = JSON.parse(value);
+            const arr = Array.isArray(datos) ? datos : [datos];
+            // Filtrar nulls
+            const limpio = arr.filter(function(x){ return x !== null && x !== undefined; });
+            sincronizarAFirebase(refMap[key], limpio);
+        } catch(e){ console.log("Sync parse error:", e); }
+    }
+};
+
+// Iniciar sincronización al cargar
+iniciarSincronizacion();
+
+
+
 let cantidadPrendas = 0;
 let totalPedido = 0;
 let mesActual = new Date().getMonth();
@@ -26,6 +115,10 @@ const precioPorPrendaInput  = document.getElementById("precioPorPrenda");
 const totalConSobrecargo    = document.getElementById("totalConSobrecargo");
 const abonoInput            = document.getElementById("abonoInicial");
 const resumenAbono          = document.getElementById("resumenAbono");
+const botonIrHoy            = document.getElementById("irHoy");
+const pantallaHoy           = document.getElementById("pantallaHoy");
+const botonVolverHoy        = document.getElementById("volverDesdeHoy");
+const listaHoy              = document.getElementById("listaHoy");
 const botonIrBuscar         = document.getElementById("irBuscar");
 const pantallaBuscar        = document.getElementById("pantallaBuscar");
 const campoBusqueda         = document.getElementById("campoBusqueda");
@@ -45,6 +138,35 @@ const pedidosDia            = document.getElementById("pedidosDia");
 const tituloDia             = document.getElementById("tituloDia");
 const listaPedidosDia       = document.getElementById("listaPedidosDia");
 const botonExcel            = document.getElementById("exportarExcel");
+const botonSyncNube         = document.getElementById("sincronizarDesdeNube");
+
+// Botón sincronizar desde nube
+botonSyncNube.addEventListener("click", function(){
+    if(!confirm("¿Deseas bajar todos los pedidos desde la nube?\n\nEsto reemplazará los datos locales de este dispositivo.")) return;
+    botonSyncNube.textContent = "⏳ Sincronizando...";
+    botonSyncNube.disabled = true;
+    db.ref("pedidos").once("value").then(function(snap){
+        const data = snap.val();
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null; });
+            window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+            // Reconstruir lista de clientes desde los pedidos
+            reconstruirClientes(arr);
+            mostrarResumenDia();
+            botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
+            botonSyncNube.disabled = false;
+            alert("✅ " + arr.length + " pedidos sincronizados correctamente.");
+        } else {
+            alert("No hay datos en la nube.");
+            botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
+            botonSyncNube.disabled = false;
+        }
+    }).catch(function(e){
+        alert("Error al sincronizar: " + e.message);
+        botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
+        botonSyncNube.disabled = false;
+    });
+});
 const resumenDiaDiv         = document.getElementById("resumenDia");
 const importarBtn           = document.getElementById("importarExcelBtn");
 const archivoExcel          = document.getElementById("archivoExcel");
@@ -84,6 +206,18 @@ botonVolver.addEventListener("click", function(){
     if(cantidadPrendas > 0){ if(!confirm("¿Deseas salir? Los datos no guardados se perderán.")) return; }
     limpiarFormulario();
     formulario.classList.add("oculto");
+    menu.classList.remove("oculto");
+    mostrarResumenDia();
+});
+
+botonIrHoy.addEventListener("click", function(){
+    menu.classList.add("oculto");
+    renderizarHoy();
+    pantallaHoy.classList.remove("oculto");
+});
+
+botonVolverHoy.addEventListener("click", function(){
+    pantallaHoy.classList.add("oculto");
     menu.classList.remove("oculto");
     mostrarResumenDia();
 });
@@ -439,27 +573,67 @@ archivoExcel.addEventListener("change", function(e){
             const filasPrendas = wsPrendas ? XLSX.utils.sheet_to_json(wsPrendas) : [];
             const pedidosImportados = filas.map(function(fila){
                 const bolsa = Number(fila["Bolsa #"])||0;
-                const prendasDeBolsa = filasPrendas.filter(function(p){ return Number(p["Bolsa #"])===bolsa; }).map(function(p){ return {tipo:p["Tipo"]||"",medidas:p["Medidas"]||"",descripcion:p["Descripción"]||"",precio:Number(p["Precio"])||0}; });
-                const totalFinal=Number(fila["Total Final"])||Number(fila["Total Prendas"])||0;
-                const abono=Number(fila["Abono"])||0;
-                return {bolsa,nombre:fila["Cliente"]||"",telefono:fila["Teléfono"]||"",fecha:parsearFechaExcel(fila["Fecha Entrega"]),hora:null,prendas:prendasDeBolsa,total:Number(fila["Total Prendas"])||0,urgente:fila["Urgente"]==="Sí",sobrecargo:Number(fila["Sobrecargo"])||0,prendasAdelantadas:0,totalConSobrecargo:totalFinal,abono,saldo:Math.max(0,totalFinal-abono),estado:fila["Estado"]||"Pendiente",fechaCreacion:fila["Fecha Creación"]||""};
+                const prendasDeBolsa = filasPrendas
+                    .filter(function(p){ return Number(p["Bolsa #"])===bolsa; })
+                    .map(function(p){ return {tipo:p["Tipo"]||"",medidas:p["Medidas"]||"",descripcion:p["Descripción"]||"",precio:Number(p["Precio"])||0}; });
+                const totalFinal = Number(fila["Total Final"])||Number(fila["Total Prendas"])||0;
+                const abono = Number(fila["Abono"])||0;
+                return {
+                    bolsa, nombre:fila["Cliente"]||"", telefono:fila["Teléfono"]||"",
+                    fecha:parsearFechaExcel(fila["Fecha Entrega"]), hora:null,
+                    prendas:prendasDeBolsa, total:Number(fila["Total Prendas"])||0,
+                    urgente:fila["Urgente"]==="Sí", sobrecargo:Number(fila["Sobrecargo"])||0,
+                    prendasAdelantadas:0, totalConSobrecargo:totalFinal,
+                    abono, saldo:Math.max(0,totalFinal-abono),
+                    estado:fila["Estado"]||"Pendiente", fechaCreacion:fila["Fecha Creación"]||""
+                };
             });
-            localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidosImportados));
+
+            // Guardar en localStorage
+            window.localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidosImportados));
 
             // Importar garantías si existen
             const wsGarantias = wb.Sheets["Garantías"];
             if(wsGarantias){
                 const filasG = XLSX.utils.sheet_to_json(wsGarantias);
                 const garantiasImportadas = filasG.map(function(g){
-                    return {id:Number(g["ID"])||Date.now(),bolsaOrigen:Number(g["Bolsa Origen"])||0,nombreCliente:g["Cliente"]||"",telefono:g["Teléfono"]||"",prendaTipo:g["Prenda"]||"",descripcion:g["Problema"]||"",fecha:parsearFechaExcel(g["Fecha Entrega"]),hora:null,estado:g["Estado"]||"Pendiente",fechaCreacion:g["Fecha Creación"]||"",tipo:"garantia"};
+                    return {id:Number(g["ID"])||Date.now(),bolsaOrigen:Number(g["Bolsa Origen"])||0,
+                    nombreCliente:g["Cliente"]||"",telefono:g["Teléfono"]||"",
+                    prendaTipo:g["Prenda"]||"",descripcion:g["Problema"]||"",
+                    fecha:parsearFechaExcel(g["Fecha Entrega"]),hora:null,
+                    estado:g["Estado"]||"Pendiente",fechaCreacion:g["Fecha Creación"]||"",tipo:"garantia"};
                 });
-                localStorage.setItem("garantiasSHALOM", JSON.stringify(garantiasImportadas));
+                window.localStorage.setItem("garantiasSHALOM", JSON.stringify(garantiasImportadas));
             }
 
             archivoExcel.value="";
             mostrarResumenDia();
-            alert("✅ Se importaron "+pedidosImportados.length+" pedidos correctamente.");
-        } catch(err){ alert("Error al leer el archivo."); console.error(err); }
+            alert("✅ "+pedidosImportados.length+" pedidos cargados en el dispositivo.\nSincronizando con la nube en lotes, por favor espera...");
+
+            // Subir a Firebase en lotes de 15 para no saturar
+            db.ref("pedidos").remove().then(function(){
+                var i = 0;
+                var tamLote = 15;
+                function subirLote(){
+                    if(i >= pedidosImportados.length){
+                        alert("✅ ¡Listo! Los "+pedidosImportados.length+" pedidos ya están sincronizados en la nube.");
+                        return;
+                    }
+                    var lote = pedidosImportados.slice(i, i+tamLote);
+                    var obj = {};
+                    lote.forEach(function(item, j){ obj["item"+(i+j)] = item; });
+                    db.ref("pedidos").update(obj).then(function(){
+                        i += tamLote;
+                        setTimeout(subirLote, 500);
+                    }).catch(function(err){
+                        console.log("Error en lote, reintentando...", err);
+                        setTimeout(subirLote, 1000);
+                    });
+                }
+                subirLote();
+            });
+
+        } catch(err){ alert("Error al leer el archivo. Asegúrate que sea un Excel exportado desde SHALOM."); console.error(err); }
     };
     reader.readAsArrayBuffer(archivo);
 });
@@ -510,7 +684,7 @@ function agregarBloquePrenda(datos){
     <div class="campoOtro" style="display:none;"><label>Especifique la prenda</label><input type="text" class="tipoPrendaOtro" placeholder="Ej: Toga, Cortina, Disfraz"></div>
     <label>Medidas</label><textarea class="medidasPrenda" placeholder="Ej: cintura 80 cm, largo 90 cm"></textarea>
     <label>Descripción</label><textarea class="descripcionPrenda" placeholder="¿Qué debe hacer la modista?"></textarea>
-    <label>Precio</label><select class="precioPrenda"><option value="0">Seleccione precio</option><option value="2000">$2.000</option><option value="4000">$4.000</option><option value="6000">$6.000</option><option value="8000">$8.000</option><option value="10000">$10.000</option><option value="12000">$12.000</option><option value="14000">$14.000</option><option value="16000">$16.000</option><option value="18000">$18.000</option><option value="20000">$20.000</option><option value="22000">$22.000</option><option value="24000">$24.000</option><option value="26000">$26.000</option><option value="28000">$28.000</option><option value="30000">$30.000</option><option value="32000">$32.000</option><option value="34000">$34.000</option><option value="36000">$36.000</option><option value="38000">$38.000</option><option value="40000">$40.000</option></select>`;
+    <label>Precio</label><input type="number" class="precioPrenda" placeholder="Escriba el precio Ej: 15000" min="0" step="500" value="0">`;
     listaPrendas.appendChild(bloque);
     if(datos){
         const tipoSelect=bloque.querySelector(".tipoPrenda");
@@ -518,12 +692,11 @@ function agregarBloquePrenda(datos){
         if(opcionExiste){ tipoSelect.value=datos.tipo; } else { tipoSelect.value="Otro"; bloque.querySelector(".campoOtro").style.display="block"; bloque.querySelector(".tipoPrendaOtro").value=datos.tipo; }
         bloque.querySelector(".medidasPrenda").value=datos.medidas||"";
         bloque.querySelector(".descripcionPrenda").value=datos.descripcion||"";
-        const precioSelect=bloque.querySelector(".precioPrenda");
-        const precioOpt=Array.from(precioSelect.options).find(function(o){ return o.value===String(datos.precio); });
-        if(precioOpt) precioSelect.value=String(datos.precio);
+        const precioInput=bloque.querySelector(".precioPrenda");
+        if(precioInput) precioInput.value=datos.precio||0;
     }
     bloque.querySelector(".eliminarPrenda").addEventListener("click", function(){ if(!confirm("¿Segura que deseas eliminar esta prenda?")) return; bloque.remove(); cantidadPrendas--; document.getElementById("contadorPrendas").textContent="Prendas registradas: "+cantidadPrendas; calcularTotal(); });
-    bloque.querySelector(".precioPrenda").addEventListener("change", calcularTotal);
+    bloque.querySelector(".precioPrenda").addEventListener("input", calcularTotal);
     const selectorTipo=bloque.querySelector(".tipoPrenda"); const campoOtro=bloque.querySelector(".campoOtro");
     selectorTipo.addEventListener("change", function(){ campoOtro.style.display=selectorTipo.value==="Otro"?"block":"none"; });
     calcularTotal();
@@ -537,14 +710,20 @@ function calcularTotal(){
 
 // ─── GUARDAR / EDITAR PEDIDO ─────────────────────────────────
 botonGuardar.addEventListener("click", function(){
+    // Evitar doble click
+    if(botonGuardar.disabled) return;
+    botonGuardar.disabled = true;
+    botonGuardar.textContent = "⏳ Guardando...";
+
     const nombre=document.getElementById("nombreCliente").value.trim();
     const telefono=document.getElementById("telefonoCliente").value.trim();
     const fecha=fechaEntradaInput.value; const hora=horaEntradaInput.value;
     const abono=Number(abonoInput.value)||0;
-    if(!nombre){ alert("Por favor escribe el nombre del cliente."); return; }
-    if(!fecha){ alert("Por favor selecciona la fecha de entrega."); return; }
+    if(!nombre){ alert("Por favor escribe el nombre del cliente."); botonGuardar.disabled=false; botonGuardar.textContent="💾 Guardar Pedido"; return; }
+    if(!fecha){ alert("Por favor selecciona la fecha de entrega."); botonGuardar.disabled=false; botonGuardar.textContent="💾 Guardar Pedido"; return; }
     const prendasEnDOM = document.querySelectorAll(".prenda").length;
-    if(prendasEnDOM===0){ alert("Agrega al menos una prenda antes de guardar."); return; }
+    if(prendasEnDOM===0){ alert("Agrega al menos una prenda antes de guardar."); botonGuardar.disabled=false; botonGuardar.textContent="💾 Guardar Pedido"; return; }
+    if(abono > 0 && abono > totalPedido){ alert("⚠️ El abono ($" + abono.toLocaleString("es-CO") + ") no puede ser mayor al total del pedido ($" + totalPedido.toLocaleString("es-CO") + ")."); botonGuardar.disabled=false; botonGuardar.textContent="💾 Guardar Pedido"; return; }
     const prendasData=[];
     document.querySelectorAll(".prenda").forEach(function(bloque){
         const tipo=bloque.querySelector(".tipoPrenda").value;
@@ -577,6 +756,15 @@ botonGuardar.addEventListener("click", function(){
         guardarCliente(nombre, telefono);
         msg.textContent="✏️ Bolsa #"+bolsaEditando+" actualizada — "+nombre+" ("+prendasData.length+" prenda(s))";
         msg.classList.remove("oculto");
+        setTimeout(function(){
+            msg.classList.add("oculto");
+            botonGuardar.disabled=false;
+            botonGuardar.textContent="💾 Guardar Pedido";
+            limpiarFormulario();
+            formulario.classList.add("oculto");
+            menu.classList.remove("oculto");
+            mostrarResumenDia();
+        }, 1500);
     } else {
         const numeroBolsa=pedidos.length+1;
         const nuevoPedido={bolsa:numeroBolsa,nombre,telefono,fecha,hora:hora||null,prendas:prendasData,total:totalPedido,urgente,sobrecargo,prendasAdelantadas,totalConSobrecargo:totalFinal,abono,saldo,estado:"Pendiente",fechaCreacion:new Date().toLocaleDateString("es-CO")};
@@ -587,7 +775,7 @@ botonGuardar.addEventListener("click", function(){
         msg.textContent="✅ Bolsa #"+numeroBolsa+" guardada — "+nombre+(urgente&&sobrecargo>0?" | ⚡ $"+sobrecargo.toLocaleString("es-CO"):"")+(abono>0?" | 💰 Abono: $"+abono.toLocaleString("es-CO"):"");
         msg.classList.remove("oculto");
     }
-    setTimeout(function(){ document.getElementById("mensajeGuardado").classList.add("oculto"); limpiarFormulario(); formulario.classList.add("oculto"); menu.classList.remove("oculto"); mostrarResumenDia(); },1500);
+    setTimeout(function(){ document.getElementById("mensajeGuardado").classList.add("oculto"); botonGuardar.disabled=false; botonGuardar.textContent="💾 Guardar Pedido"; limpiarFormulario(); formulario.classList.add("oculto"); menu.classList.remove("oculto"); mostrarResumenDia(); },1500);
 });
 
 // ─── BUSCAR ──────────────────────────────────────────────────
@@ -624,12 +812,14 @@ function mostrarDetalle(pedido){
     const abonoHTML=`<div class="detalle-abono"><h3>💰 Pagos</h3><div class="abono-fila"><span>Total del pedido:</span><strong>$${totalFinal.toLocaleString("es-CO")}</strong></div><div class="abono-fila"><span>Abono recibido:</span><strong class="color-verde">$${abonoActual.toLocaleString("es-CO")}</strong></div><div class="abono-fila abono-saldo"><span>Saldo pendiente:</span><strong class="color-rojo">$${saldoActual.toLocaleString("es-CO")}</strong></div>${saldoActual>0?`<div class="abono-editar"><label>Registrar nuevo abono:</label><div class="urgente-precio-wrap"><span>$</span><input id="nuevoAbono" type="number" min="0" step="1000" placeholder="Monto" style="width:auto;flex:1;"></div><button id="btnRegistrarAbono" type="button" class="btn-abono">💰 Registrar Abono</button></div>`:'<p class="pagado-completo">✅ Pagado completamente</p>'}</div>`;
     contenidoDetalle.innerHTML=`<div class="detalle-header"><h2>Bolsa #${pedido.bolsa}</h2>${pedido.urgente?'<span class="badge-urgente">⚡ Urgente</span>':""}<span class="estado-badge ${estadoClase}">${pedido.estado}</span></div><div class="detalle-bloque"><p><span class="detalle-label">👤 Cliente:</span> ${pedido.nombre}</p><p><span class="detalle-label">📞 Teléfono:</span> ${pedido.telefono||"—"}</p><p><span class="detalle-label">📅 Fecha de entrega:</span> ${formatearFecha(pedido.fecha)}${pedido.hora?" a las <strong>"+formatearHora(pedido.hora)+"</strong>":""}</p><p><span class="detalle-label">🗓 Fecha de creación:</span> ${pedido.fechaCreacion}</p></div>${urgenteHTML}<h3>Prendas</h3>${prendasHTML}<div class="detalle-total">💵 Subtotal prendas: $${pedido.total.toLocaleString("es-CO")}${pedido.urgente&&pedido.sobrecargo>0?`<br><small>+ $${pedido.sobrecargo.toLocaleString("es-CO")} sobrecargo</small><br>Total final: $${totalFinal.toLocaleString("es-CO")}`:""}</div>${abonoHTML}<div class="detalle-acciones"><button id="btnCambiarEstado" type="button" class="${claseBoton}">${textoBoton}</button><button id="btnEditarPedido" type="button" class="btn-editar">✏️ Editar Pedido</button><button id="btnEliminarPedido" type="button" class="btn-eliminar">🗑 Eliminar Pedido</button></div>`;
     document.getElementById("btnCambiarEstado").addEventListener("click", function(){
-        const pedidos=obtenerPedidos();
+        const rawP = window.localStorage.getItem("pedidosSHALOM");
+        const pedidos = rawP ? JSON.parse(rawP) : [];
         const idx=pedidos.findIndex(function(p){ return p.bolsa===pedido.bolsa; });
-        if(idx===-1) return;
+        if(idx===-1){ alert("No se encontró el pedido."); return; }
         const nuevoEstado = pedidos[idx].estado==="Terminado" ? "Pendiente" : "Terminado";
         pedidos[idx].estado = nuevoEstado;
-        localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
+        window.localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
+        sincronizarAFirebase("pedidos", pedidos);
         mostrarDetalle(pedidos[idx]);
 
         // Si acaba de marcarse como Terminado y tiene teléfono, mostrar botón WhatsApp
@@ -649,16 +839,23 @@ function mostrarDetalle(pedido){
     if(btnAbono){ btnAbono.addEventListener("click", function(){
         const nuevoMonto=Number(document.getElementById("nuevoAbono").value)||0;
         if(nuevoMonto<=0){ alert("Ingresa un monto válido."); return; }
-        const pedidos=obtenerPedidos();
+        const rawP2 = window.localStorage.getItem("pedidosSHALOM");
+        const pedidos = rawP2 ? JSON.parse(rawP2) : [];
         const idx=pedidos.findIndex(function(p){ return p.bolsa===pedido.bolsa; });
         if(idx===-1) return;
         const totalF=pedidos[idx].totalConSobrecargo||pedidos[idx].total;
+        const abonoActual = pedidos[idx].abono || 0;
+        if(abonoActual + nuevoMonto > totalF){
+            alert("⚠️ El abono no puede superar el total del pedido ($" + totalF.toLocaleString("es-CO") + "). Saldo pendiente: $" + (totalF - abonoActual).toLocaleString("es-CO"));
+            return;
+        }
         pedidos[idx].abono=(pedidos[idx].abono||0)+nuevoMonto;
         pedidos[idx].saldo=Math.max(0,totalF-pedidos[idx].abono);
-        localStorage.setItem("pedidosSHALOM",JSON.stringify(pedidos));
+        window.localStorage.setItem("pedidosSHALOM",JSON.stringify(pedidos));
+        sincronizarAFirebase("pedidos", pedidos);
         // Registrar en caja
-        const desc = pedidos[idx].saldo===0 ? "Pago total" : "Abono parcial";
-        registrarMovimientoCaja(pedidos[idx], nuevoMonto, desc);
+        const descCaja = pedidos[idx].saldo===0 ? "Pago total" : "Abono parcial";
+        registrarMovimientoCaja(pedidos[idx], nuevoMonto, descCaja);
         mostrarDetalle(pedidos[idx]);
     }); }
     document.getElementById("btnEditarPedido").addEventListener("click", function(){ abrirEdicion(pedido); });
@@ -682,6 +879,118 @@ function abrirEdicion(pedido){
 }
 
 // ─── CALENDARIO ──────────────────────────────────────────────
+// ─── PEDIDOS DE HOY ─────────────────────────────────────────
+
+function renderizarHoy(){
+    const hoyStr  = fechaAString(new Date());
+    const pedidos = obtenerPedidos();
+    const garantias = obtenerGarantias();
+
+    // Pendientes de hoy
+    const pendientesHoy = pedidos.filter(function(p){
+        return p.fecha === hoyStr && p.estado === "Pendiente";
+    });
+    const garantiasPendientesHoy = garantias.filter(function(g){
+        return g.fecha === hoyStr && g.estado === "Pendiente";
+    });
+    const terminadosHoy = pedidos.filter(function(p){
+        return p.fecha === hoyStr && p.estado === "Terminado";
+    }).length;
+
+    const total = pendientesHoy.length + garantiasPendientesHoy.length + terminadosHoy;
+    const resumen = document.getElementById("hoyResumenTexto");
+    resumen.textContent = total + " entrega(s) hoy — " + terminadosHoy + " terminada(s), " + (pendientesHoy.length + garantiasPendientesHoy.length) + " pendiente(s)";
+
+    listaHoy.innerHTML = "";
+    const hoyVacio = document.getElementById("hoyVacio");
+
+    if(pendientesHoy.length === 0 && garantiasPendientesHoy.length === 0){
+        hoyVacio.classList.remove("oculto");
+    } else {
+        hoyVacio.classList.add("oculto");
+
+        // Mostrar pedidos pendientes
+        pendientesHoy.forEach(function(pedido){
+            const tarjeta = document.createElement("div");
+            tarjeta.classList.add("tarjeta-hoy");
+
+            const totalFinal = pedido.totalConSobrecargo || pedido.total;
+            tarjeta.innerHTML = `
+                <div class="hoy-info">
+                    <div class="hoy-nombre">${pedido.urgente ? "⚡ " : ""}${pedido.nombre}</div>
+                    <div class="hoy-detalle">
+                        Bolsa #${pedido.bolsa} · ${pedido.prendas.length} prenda(s)
+                        ${pedido.hora ? " · " + formatearHora(pedido.hora) : ""}
+                    </div>
+                    <div class="hoy-total">$${totalFinal.toLocaleString("es-CO")}
+                        ${pedido.saldo > 0 ? ' · Saldo: $' + pedido.saldo.toLocaleString("es-CO") : " · ✅ Pagado"}
+                    </div>
+                </div>
+                <button type="button" class="btn-hoy-terminar">✓ Listo</button>
+            `;
+
+            // Al marcar como terminado desaparece de la lista
+            tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
+                const pedidos = obtenerPedidos();
+                const idx = pedidos.findIndex(function(p){ return p.bolsa === pedido.bolsa; });
+                if(idx === -1) return;
+                pedidos[idx].estado = "Terminado";
+                window.localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
+                sincronizarAFirebase("pedidos", pedidos);
+                // Animación de salida
+                tarjeta.style.transition = "opacity 0.3s, transform 0.3s";
+                tarjeta.style.opacity = "0";
+                tarjeta.style.transform = "translateX(60px)";
+                setTimeout(function(){
+                    tarjeta.remove();
+                    renderizarHoy();
+                    // WhatsApp si tiene teléfono
+                    if(pedidos[idx].telefono){
+                        const tel = pedidos[idx].telefono.replace(/\D/g,"");
+                        const telFinal = tel.startsWith("57") ? tel : "57" + tel;
+                        const texto = "Hola " + pedidos[idx].nombre + ", te saludamos desde SHALOM Modisteria.\n\nTu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya esta listo.\n\nYa puedes pasar a recogerlo!\n\nGracias por confiar en nosotros.";
+                        window.open("https://wa.me/" + telFinal + "?text=" + encodeURIComponent(texto), "_blank");
+                    }
+                }, 300);
+            });
+
+            listaHoy.appendChild(tarjeta);
+        });
+
+        // Mostrar garantías pendientes
+        garantiasPendientesHoy.forEach(function(garantia){
+            const tarjeta = document.createElement("div");
+            tarjeta.classList.add("tarjeta-hoy", "tarjeta-hoy-garantia");
+            tarjeta.innerHTML = `
+                <div class="hoy-info">
+                    <div class="hoy-nombre">🛡 ${garantia.nombreCliente}</div>
+                    <div class="hoy-detalle">
+                        Garantía · Bolsa #${garantia.bolsaOrigen} · ${garantia.prendaTipo}
+                        ${garantia.hora ? " · " + formatearHora(garantia.hora) : ""}
+                    </div>
+                    <div class="hoy-total" style="color:#e65100">Sin costo</div>
+                </div>
+                <button type="button" class="btn-hoy-terminar">✓ Listo</button>
+            `;
+
+            tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
+                const garantias = obtenerGarantias();
+                const idx = garantias.findIndex(function(g){ return g.id === garantia.id; });
+                if(idx === -1) return;
+                garantias[idx].estado = "Terminado";
+                window.localStorage.setItem("garantiasSHALOM", JSON.stringify(garantias));
+                sincronizarAFirebase("garantias", garantias);
+                tarjeta.style.transition = "opacity 0.3s, transform 0.3s";
+                tarjeta.style.opacity = "0";
+                tarjeta.style.transform = "translateX(60px)";
+                setTimeout(function(){ tarjeta.remove(); renderizarHoy(); }, 300);
+            });
+
+            listaHoy.appendChild(tarjeta);
+        });
+    }
+}
+
 const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 function renderizarCalendario(mes,anio){
@@ -759,9 +1068,26 @@ function obtenerClientes(){
     return d ? JSON.parse(d) : [];
 }
 
+function reconstruirClientes(pedidos){
+    // Extrae todos los clientes únicos de la lista de pedidos
+    const mapa = {};
+    pedidos.forEach(function(p){
+        if(p.nombre && !mapa[p.nombre.toLowerCase()]){
+            mapa[p.nombre.toLowerCase()] = {
+                nombre: p.nombre,
+                telefono: p.telefono || ""
+            };
+        }
+    });
+    const clientes = Object.values(mapa);
+    window.localStorage.setItem(CLAVES.clientes, JSON.stringify(clientes));
+    console.log("Clientes reconstruidos:", clientes.length);
+}
+
 function guardarCliente(nombre, telefono){
     if(!nombre) return;
-    const clientes = obtenerClientes();
+    const d = localStorage.getItem("clientesSHALOM");
+    const clientes = d ? JSON.parse(d) : [];
     const existe = clientes.find(function(c){ return c.nombre.toLowerCase() === nombre.toLowerCase(); });
     if(existe){
         // Actualizar teléfono si cambió
@@ -991,14 +1317,21 @@ function obtenerMovimientosCaja(){
 }
 
 function registrarMovimientoCaja(pedido, monto, descripcion){
-    const movimientos = obtenerMovimientosCaja();
-    movimientos.push({
+    if(!monto || monto <= 0) return;
+    const d = _lsSetItem ? localStorage.getItem("movimientosCajaSHALOM") : null;
+    const movimientos = d ? JSON.parse(d) : [];
+    const nuevoMov = {
         id:          Date.now(),
         fecha:       fechaAString(new Date()),
         bolsa:       pedido.bolsa,
         cliente:     pedido.nombre,
-        valor:       monto,
+        valor:       Number(monto),
         descripcion: descripcion
-    });
-    localStorage.setItem("movimientosCajaSHALOM", JSON.stringify(movimientos));
+    };
+    movimientos.push(nuevoMov);
+    // Use native localStorage to avoid any interceptor issues
+    const raw = JSON.stringify(movimientos);
+    window.localStorage.setItem("movimientosCajaSHALOM", raw);
+    // Also sync to Firebase directly
+    sincronizarAFirebase("movimientos", movimientos);
 }

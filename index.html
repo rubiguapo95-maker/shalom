@@ -22,11 +22,13 @@
         <div class="botones">
             <button id="nuevoPedido">📋 Nuevo Pedido</button>
             <button id="irBuscar">🔍 Buscar Pedido</button>
+            <button id="irHoy" class="btn-hoy">📦 Pedidos de Hoy</button>
             <button id="irCalendario">📅 Calendario</button>
             <button id="irGarantia" class="btn-garantia-menu">🛡 Registrar Garantía</button>
             <button id="irCaja" class="btn-caja">💵 Caja del Día</button>
             <button id="exportarExcel" class="btn-excel">📤 Exportar a Excel</button>
             <button id="importarExcelBtn" class="btn-importar">📥 Importar desde Excel</button>
+            <button id="sincronizarDesdeNube" class="btn-sync">☁️ Sincronizar desde la nube</button>
             <input type="file" id="archivoExcel" accept=".xlsx" style="display:none;">
         </div>
     </div>
@@ -82,6 +84,17 @@
 
         <button id="guardarPedido" type="button">💾 Guardar Pedido</button>
         <div id="mensajeGuardado" class="oculto mensaje-ok"></div>
+    </div>
+
+    <!-- PEDIDOS DE HOY -->
+    <div class="contenedor oculto" id="pantallaHoy">
+        <button id="volverDesdeHoy" type="button">← Volver al menú</button>
+        <h2>📦 Pedidos de Hoy</h2>
+        <p id="hoyResumenTexto" class="caja-nota"></p>
+        <div id="listaHoy"></div>
+        <p id="hoyVacio" class="oculto" style="text-align:center;color:#6b7280;margin-top:30px;font-size:16px;">
+            ✅ ¡Todos los pedidos de hoy están terminados!
+        </p>
     </div>
 
     <!-- BUSCAR PEDIDO -->
@@ -202,13 +215,13 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!-- Botón flotante volver arriba -->
+    <button id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Ir arriba">↑</button>
+
     <script src="script.js"></script>
-    <script>
-        if("serviceWorker" in navigator){
-            navigator.serviceWorker.register("./sw.js")
-                .then(function(){ console.log("SW registrado"); })
-                .catch(function(e){ console.log("SW error:", e); });
-        }
-    </script>
+    <!-- SW removed to prevent caching issues -->
 </body>
 </html>

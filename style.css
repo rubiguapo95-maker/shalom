@@ -1083,3 +1083,111 @@ label {
     button { font-size: 15px; padding: 14px 18px; }
     input, select { font-size: 15px; }
 }
+
+/* ══════════════════════════════════════
+   BOTÓN FLOTANTE SCROLL TOP
+══════════════════════════════════════ */
+#btnScrollTop {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--azul);
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 999;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+}
+#btnScrollTop:hover {
+    background: #14304e;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+/* ── Precio manual input ── */
+input.precioPrenda {
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.btn-sync { background: #0369a1; }
+.btn-sync:hover { background: #075985; }
+
+/* ══════════════════════════════════════
+   PEDIDOS DE HOY
+══════════════════════════════════════ */
+
+.btn-hoy { background: #0f766e; }
+.btn-hoy:hover { background: #0d5c56; }
+
+.tarjeta-hoy {
+    background: white;
+    border-radius: var(--radio);
+    padding: 16px 18px;
+    margin-top: 12px;
+    border: 1.5px solid var(--gris-borde);
+    box-shadow: var(--sombra);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border-left: 4px solid var(--azul);
+}
+
+.tarjeta-hoy-garantia {
+    border-left: 4px solid var(--naranja) !important;
+}
+
+.hoy-info { flex: 1; }
+
+.hoy-nombre {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--gris-oscuro);
+    margin-bottom: 4px;
+}
+
+.hoy-detalle {
+    font-size: 13px;
+    color: var(--gris-texto);
+    margin-bottom: 4px;
+}
+
+.hoy-total {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--azul);
+}
+
+.btn-hoy-terminar {
+    background: var(--verde);
+    color: white;
+    border: none;
+    border-radius: var(--radio-sm);
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.1s;
+}
+.btn-hoy-terminar:hover {
+    background: #138a3e;
+    transform: scale(1.05);
+}
+
+@media (max-width: 600px) {
+    .tarjeta-hoy { flex-direction: column; align-items: flex-start; }
+    .btn-hoy-terminar { width: 100%; text-align: center; }
+}
