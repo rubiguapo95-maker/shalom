@@ -496,16 +496,7 @@ function mostrarResumenDia(){
         if(vencidos > 0) html += `<div class="resumen-fila resumen-vencido"><span>⚠️ Pedidos vencidos sin entregar:</span><strong>${vencidos}</strong></div>`;
         if(garantiasVencidas > 0) html += `<div class="resumen-fila resumen-vencido"><span>⚠️ Garantías vencidas sin entregar:</span><strong>${garantiasVencidas}</strong></div>`;
 
-        if(pedidosHoy.length > 0 || garantiasHoy.length > 0){
-            html += `<div class="resumen-clientes">`;
-            pedidosHoy.forEach(function(p){
-                html += `<div class="resumen-cliente-item"><span>${p.urgente?"⚡":"👤"} ${p.nombre}</span><span>${p.prendas.length} prenda(s)${p.hora?" · "+formatearHora(p.hora):""}</span></div>`;
-            });
-            garantiasHoy.forEach(function(g){
-                html += `<div class="resumen-cliente-item resumen-garantia-item"><span>🛡 ${g.nombreCliente}</span><span>${g.prendaTipo}${g.hora?" · "+formatearHora(g.hora):""}</span></div>`;
-            });
-            html += `</div>`;
-        }
+        // Lista de clientes removida - usar botón "Pedidos de Hoy" para ver detalle
         resumenDiaDiv.innerHTML = `<div class="resumen-card">${html}</div>`;
     }
     resumenDiaDiv.classList.remove("oculto");
@@ -931,6 +922,7 @@ function renderizarHoy(){
 
             // Al marcar como terminado desaparece de la lista
             tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
+                if(!confirm("¿Segura que el pedido de " + pedido.nombre + " ya está listo para entregar?")) return;
                 const pedidos = obtenerPedidos();
                 const idx = pedidos.findIndex(function(p){ return p.bolsa === pedido.bolsa; });
                 if(idx === -1) return;
@@ -974,6 +966,7 @@ function renderizarHoy(){
             `;
 
             tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
+                if(!confirm("¿Segura que la garantía de " + garantia.nombreCliente + " ya está lista?")) return;
                 const garantias = obtenerGarantias();
                 const idx = garantias.findIndex(function(g){ return g.id === garantia.id; });
                 if(idx === -1) return;
