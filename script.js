@@ -197,7 +197,8 @@ botonNuevo.addEventListener("click", function(){
     document.getElementById("tituloFormulario").textContent = "Nuevo Pedido";
     botonGuardar.textContent = "💾 Guardar Pedido";
     const pedidos = obtenerPedidos();
-    document.getElementById("numeroBolsa").textContent = "Bolsa #" + (pedidos.length + 1);
+    const maxBolsa = pedidos.reduce(function(max, p){ return Math.max(max, p.bolsa || 0); }, 0);
+    document.getElementById("numeroBolsa").textContent = "Bolsa #" + (maxBolsa + 1);
     menu.classList.add("oculto");
     formulario.classList.remove("oculto");
 });
@@ -766,7 +767,8 @@ botonGuardar.addEventListener("click", function(){
             mostrarResumenDia();
         }, 1500);
     } else {
-        const numeroBolsa=pedidos.length+1;
+        const maxBolsaSave = pedidos.reduce(function(max,p){ return Math.max(max,p.bolsa||0); },0);
+        const numeroBolsa = maxBolsaSave + 1;
         const nuevoPedido={bolsa:numeroBolsa,nombre,telefono,fecha,hora:hora||null,prendas:prendasData,total:totalPedido,urgente,sobrecargo,prendasAdelantadas,totalConSobrecargo:totalFinal,abono,saldo,estado:"Pendiente",fechaCreacion:new Date().toLocaleDateString("es-CO")};
         pedidos.push(nuevoPedido);
         localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
