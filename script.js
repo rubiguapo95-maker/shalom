@@ -822,16 +822,30 @@ function mostrarDetalle(pedido){
         sincronizarAFirebase("pedidos", pedidos);
         mostrarDetalle(pedidos[idx]);
 
-        // Si acaba de marcarse como Terminado y tiene teléfono, mostrar botón WhatsApp
+        // Si acaba de marcarse como Terminado mostrar botón WhatsApp clickeable
         if(nuevoEstado === "Terminado" && pedidos[idx].telefono){
-            const telefono = pedidos[idx].telefono.replace(/\D/g,"");
+            const telefono = pedidos[idx].telefono.replace(/[^0-9]/g,"");
             const telefonoFinal = telefono.startsWith("57") ? telefono : "57" + telefono;
             const texto =
-                "Hola " + pedidos[idx].nombre + ", te saludamos desde SHALOM Modistería." + "\n\n" +
-                "Tu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya está listo." + "\n\n" +
+                "Hola " + pedidos[idx].nombre + ", te saludamos desde SHALOM Modisteria." + "\n\n" +
+                "Tu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya esta listo." + "\n\n" +
                 "Ya puedes pasar a recogerlo!" + "\n\n" +
                 "Gracias por confiar en nosotros.";
-            window.open("https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto), "_blank");
+            const waUrl = "https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto);
+            // Insertar botón WhatsApp como enlace directo en el detalle
+            setTimeout(function(){
+                const acciones = document.querySelector(".detalle-acciones");
+                if(acciones && !document.getElementById("btnWhatsapp")){
+                    const waLink = document.createElement("a");
+                    waLink.id = "btnWhatsapp";
+                    waLink.href = waUrl;
+                    waLink.target = "_blank";
+                    waLink.rel = "noopener noreferrer";
+                    waLink.className = "btn-whatsapp";
+                    waLink.textContent = "📲 Enviar WhatsApp al cliente";
+                    acciones.appendChild(waLink);
+                }
+            }, 300);
         }
     });
     const btnAbono=document.getElementById("btnRegistrarAbono");
