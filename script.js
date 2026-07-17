@@ -820,9 +820,8 @@ function mostrarDetalle(pedido){
         pedidos[idx].estado = nuevoEstado;
         window.localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
         sincronizarAFirebase("pedidos", pedidos);
-        mostrarDetalle(pedidos[idx]);
 
-        // Si acaba de marcarse como Terminado mostrar botón WhatsApp clickeable
+        // Abrir WhatsApp ANTES de mostrarDetalle para evitar bloqueo de popup
         if(nuevoEstado === "Terminado" && pedidos[idx].telefono){
             const telefono = pedidos[idx].telefono.replace(/[^0-9]/g,"");
             const telefonoFinal = telefono.startsWith("57") ? telefono : "57" + telefono;
@@ -831,22 +830,10 @@ function mostrarDetalle(pedido){
                 "Tu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya esta listo." + "\n\n" +
                 "Ya puedes pasar a recogerlo!" + "\n\n" +
                 "Gracias por confiar en nosotros.";
-            const waUrl = "https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto);
-            // Insertar botón WhatsApp como enlace directo en el detalle
-            setTimeout(function(){
-                const acciones = document.querySelector(".detalle-acciones");
-                if(acciones && !document.getElementById("btnWhatsapp")){
-                    const waLink = document.createElement("a");
-                    waLink.id = "btnWhatsapp";
-                    waLink.href = waUrl;
-                    waLink.target = "_blank";
-                    waLink.rel = "noopener noreferrer";
-                    waLink.className = "btn-whatsapp";
-                    waLink.textContent = "📲 Enviar WhatsApp al cliente";
-                    acciones.appendChild(waLink);
-                }
-            }, 300);
+            window.open("https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto), "_blank");
         }
+
+        mostrarDetalle(pedidos[idx]);
     });
     const btnAbono=document.getElementById("btnRegistrarAbono");
     if(btnAbono){ btnAbono.addEventListener("click", function(){
