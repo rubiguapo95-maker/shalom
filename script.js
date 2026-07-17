@@ -237,8 +237,14 @@ botonVolverBuscar.addEventListener("click", function(){
 
 botonVolverDetalle.addEventListener("click", function(){
     pantallaDetalle.classList.add("oculto");
-    if(pantallaAnteriorDetalle === "calendario"){ pantallaCalendario.classList.remove("oculto"); }
-    else { pantallaBuscar.classList.remove("oculto"); }
+    if(pantallaAnteriorDetalle === "calendario"){
+        pantallaCalendario.classList.remove("oculto");
+    } else if(pantallaAnteriorDetalle === "hoy"){
+        renderizarHoy();
+        pantallaHoy.classList.remove("oculto");
+    } else {
+        pantallaBuscar.classList.remove("oculto");
+    }
 });
 
 botonIrCalendario.addEventListener("click", function(){
@@ -294,6 +300,9 @@ botonVolverDetalleGarantia.addEventListener("click", function(){
         pantallaCalendario.classList.remove("oculto");
     } else if(pantallaAnteriorGarantia === "buscar"){
         pantallaBuscar.classList.remove("oculto");
+    } else if(pantallaAnteriorGarantia === "hoy"){
+        renderizarHoy();
+        pantallaHoy.classList.remove("oculto");
     } else {
         menu.classList.remove("oculto");
         mostrarResumenDia();
@@ -822,8 +831,7 @@ function mostrarDetalle(pedido){
                 "Tu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya está listo." + "\n\n" +
                 "Ya puedes pasar a recogerlo!" + "\n\n" +
                 "Gracias por confiar en nosotros.";
-            const url = "https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto);
-            window.open(url, "_blank");
+            window.open("https://wa.me/" + telefonoFinal + "?text=" + encodeURIComponent(texto), "_blank");
         }
     });
     const btnAbono=document.getElementById("btnRegistrarAbono");
@@ -920,30 +928,11 @@ function renderizarHoy(){
                 <button type="button" class="btn-hoy-terminar">✓ Listo</button>
             `;
 
-            // Al marcar como terminado desaparece de la lista
+            // Al dar "Listo" abre el detalle donde está el botón de marcar terminado + WhatsApp
             tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
-                if(!confirm("¿Segura que el pedido de " + pedido.nombre + " ya está listo para entregar?")) return;
-                const pedidos = obtenerPedidos();
-                const idx = pedidos.findIndex(function(p){ return p.bolsa === pedido.bolsa; });
-                if(idx === -1) return;
-                pedidos[idx].estado = "Terminado";
-                window.localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
-                sincronizarAFirebase("pedidos", pedidos);
-                // Animación de salida
-                tarjeta.style.transition = "opacity 0.3s, transform 0.3s";
-                tarjeta.style.opacity = "0";
-                tarjeta.style.transform = "translateX(60px)";
-                setTimeout(function(){
-                    tarjeta.remove();
-                    renderizarHoy();
-                    // WhatsApp si tiene teléfono
-                    if(pedidos[idx].telefono){
-                        const tel = pedidos[idx].telefono.replace(/\D/g,"");
-                        const telFinal = tel.startsWith("57") ? tel : "57" + tel;
-                        const texto = "Hola " + pedidos[idx].nombre + ", te saludamos desde SHALOM Modisteria.\n\nTu pedido (Bolsa #" + pedidos[idx].bolsa + ") ya esta listo.\n\nYa puedes pasar a recogerlo!\n\nGracias por confiar en nosotros.";
-                        window.open("https://wa.me/" + telFinal + "?text=" + encodeURIComponent(texto), "_blank");
-                    }
-                }, 300);
+                pantallaHoy.classList.add("oculto");
+                pantallaAnteriorDetalle = "hoy";
+                mostrarDetalle(pedido);
             });
 
             listaHoy.appendChild(tarjeta);
@@ -966,17 +955,9 @@ function renderizarHoy(){
             `;
 
             tarjeta.querySelector(".btn-hoy-terminar").addEventListener("click", function(){
-                if(!confirm("¿Segura que la garantía de " + garantia.nombreCliente + " ya está lista?")) return;
-                const garantias = obtenerGarantias();
-                const idx = garantias.findIndex(function(g){ return g.id === garantia.id; });
-                if(idx === -1) return;
-                garantias[idx].estado = "Terminado";
-                window.localStorage.setItem("garantiasSHALOM", JSON.stringify(garantias));
-                sincronizarAFirebase("garantias", garantias);
-                tarjeta.style.transition = "opacity 0.3s, transform 0.3s";
-                tarjeta.style.opacity = "0";
-                tarjeta.style.transform = "translateX(60px)";
-                setTimeout(function(){ tarjeta.remove(); renderizarHoy(); }, 300);
+                pantallaHoy.classList.add("oculto");
+                pantallaAnteriorGarantia = "hoy";
+                mostrarDetalleGarantia(garantia);
             });
 
             listaHoy.appendChild(tarjeta);

@@ -222,6 +222,14 @@
     <button id="btnScrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Ir arriba">↑</button>
 
     <script src="script.js"></script>
-    <!-- SW removed to prevent caching issues -->
+    <script>
+        if("serviceWorker" in navigator){
+            navigator.serviceWorker.register("./sw.js")
+                .then(function(reg){
+                    reg.update(); // Forzar actualización cada vez
+                })
+                .catch(function(e){ console.log("SW error:", e); });
+        }
+    </script>
 </body>
 </html>
