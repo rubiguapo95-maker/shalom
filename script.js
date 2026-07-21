@@ -26,10 +26,45 @@ const CLAVES = {
 
 // Escuchar cambios en Firebase y actualizar localStorage
 function iniciarSincronizacion(){
-    // Solo escuchar cambios en pedidos y garantias, no descargar todo al inicio
-    // Usar once() en lugar de on() para no mantener conexión permanente que frena la app
-    // La sincronización sube datos (localStorage → Firebase) pero no baja masivamente
-    console.log("Sincronización Firebase lista");
+    // Sincronizar silenciosamente al cargar - sin bloquear la UI
+    db.ref("pedidos").once("value").then(function(snap){
+        const data = snap.val();
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
+            if(arr.length > 0){
+                window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+                reconstruirClientes(arr);
+                mostrarResumenDia();
+            }
+        }
+    }).catch(function(e){ console.log("Sync error:", e); });
+
+    // Escuchar cambios en tiempo real para actualizar automáticamente
+    db.ref("pedidos").on("value", function(snap){
+        const data = snap.val();
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
+            if(arr.length > 0){
+                const localRaw = window.localStorage.getItem(CLAVES.pedidos);
+                const localArr = localRaw ? JSON.parse(localRaw) : [];
+                if(arr.length >= localArr.length){
+                    window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+                    mostrarResumenDia();
+                }
+            }
+        }
+    });
+
+    // Sincronizar garantías en tiempo real
+    db.ref("garantias").on("value", function(snap){
+        const data = snap.val();
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
+            if(arr.length > 0){
+                window.localStorage.setItem(CLAVES.garantias, JSON.stringify(arr));
+            }
+        }
+    });
 }
 
 // Función para bajar datos de Firebase al localStorage (usar manualmente si se necesita)
@@ -196,11 +231,28 @@ botonNuevo.addEventListener("click", function(){
     modoEdicion = false; bolsaEditando = null;
     document.getElementById("tituloFormulario").textContent = "Nuevo Pedido";
     botonGuardar.textContent = "💾 Guardar Pedido";
-    const pedidos = obtenerPedidos();
-    const maxBolsa = pedidos.reduce(function(max, p){ return Math.max(max, p.bolsa || 0); }, 0);
-    document.getElementById("numeroBolsa").textContent = "Bolsa #" + (maxBolsa + 1);
+    document.getElementById("numeroBolsa").textContent = "Calculando bolsa...";
     menu.classList.add("oculto");
     formulario.classList.remove("oculto");
+
+    // Verificar en Firebase el número más alto para evitar duplicados
+    db.ref("pedidos").once("value").then(function(snap){
+        const data = snap.val();
+        let maxBolsa = 0;
+        if(data){
+            const arr = Object.values(data).filter(function(x){ return x !== null; });
+            if(arr.length > 0){
+                window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+                reconstruirClientes(arr);
+            }
+            maxBolsa = arr.reduce(function(max, p){ return Math.max(max, p.bolsa || 0); }, 0);
+        }
+        document.getElementById("numeroBolsa").textContent = "Bolsa #" + (maxBolsa + 1);
+    }).catch(function(){
+        const pedidos = obtenerPedidos();
+        const maxBolsa = pedidos.reduce(function(max, p){ return Math.max(max, p.bolsa || 0); }, 0);
+        document.getElementById("numeroBolsa").textContent = "Bolsa #" + (maxBolsa + 1);
+    });
 });
 
 botonVolver.addEventListener("click", function(){
@@ -403,6 +455,7 @@ guardarGarantia.addEventListener("click", function(){
 
     garantias.push(garantia);
     localStorage.setItem("garantiasSHALOM", JSON.stringify(garantias));
+    sincronizarAFirebase("garantias", garantias);
 
     const msg = document.getElementById("mensajeGarantia");
     msg.textContent = "🛡 Garantía registrada para " + garantia.nombreCliente + " — entrega " + formatearFecha(fecha);
@@ -767,8 +820,9 @@ botonGuardar.addEventListener("click", function(){
             mostrarResumenDia();
         }, 1500);
     } else {
+        // Calcular bolsa - reinicia después de 300
         const maxBolsaSave = pedidos.reduce(function(max,p){ return Math.max(max,p.bolsa||0); },0);
-        const numeroBolsa = maxBolsaSave + 1;
+        const numeroBolsa = maxBolsaSave >= 300 ? 1 : maxBolsaSave + 1;
         const nuevoPedido={bolsa:numeroBolsa,nombre,telefono,fecha,hora:hora||null,prendas:prendasData,total:totalPedido,urgente,sobrecargo,prendasAdelantadas,totalConSobrecargo:totalFinal,abono,saldo,estado:"Pendiente",fechaCreacion:new Date().toLocaleDateString("es-CO")};
         pedidos.push(nuevoPedido);
         localStorage.setItem("pedidosSHALOM", JSON.stringify(pedidos));
