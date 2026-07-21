@@ -26,45 +26,7 @@ const CLAVES = {
 
 // Escuchar cambios en Firebase y actualizar localStorage
 function iniciarSincronizacion(){
-    // Sincronizar silenciosamente al cargar - sin bloquear la UI
-    db.ref("pedidos").once("value").then(function(snap){
-        const data = snap.val();
-        if(data){
-            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
-            if(arr.length > 0){
-                window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
-                reconstruirClientes(arr);
-                mostrarResumenDia();
-            }
-        }
-    }).catch(function(e){ console.log("Sync error:", e); });
-
-    // Escuchar cambios en tiempo real para actualizar automáticamente
-    db.ref("pedidos").on("value", function(snap){
-        const data = snap.val();
-        if(data){
-            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
-            if(arr.length > 0){
-                const localRaw = window.localStorage.getItem(CLAVES.pedidos);
-                const localArr = localRaw ? JSON.parse(localRaw) : [];
-                if(arr.length >= localArr.length){
-                    window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
-                    mostrarResumenDia();
-                }
-            }
-        }
-    });
-
-    // Sincronizar garantías en tiempo real
-    db.ref("garantias").on("value", function(snap){
-        const data = snap.val();
-        if(data){
-            const arr = Object.values(data).filter(function(x){ return x !== null && x !== undefined; });
-            if(arr.length > 0){
-                window.localStorage.setItem(CLAVES.garantias, JSON.stringify(arr));
-            }
-        }
-    });
+    console.log("Firebase listo - usa el boton de sincronizar para bajar datos");
 }
 
 // Función para bajar datos de Firebase al localStorage (usar manualmente si se necesita)
