@@ -145,7 +145,9 @@ botonSyncNube.addEventListener("click", function(){
 
     Promise.all([
         db.ref("pedidos").once("value"),
-        db.ref("garantias").once("value")
+        db.ref("garantias").once("value"),
+        db.ref("movimientos").once("value"),
+        db.ref("gastos").once("value")
     ]).then(function(resultados){
         const dataPedidos = resultados[0].val();
         let totalPedidos = 0;
@@ -165,6 +167,16 @@ botonSyncNube.addEventListener("click", function(){
                 window.localStorage.setItem(CLAVES.garantias, JSON.stringify(arr));
                 totalGarantias = arr.length;
             }
+        }
+        const dataMovimientos = resultados[2].val();
+        if(dataMovimientos){
+            const arr = Object.values(dataMovimientos).filter(function(x){ return x !== null; });
+            if(arr.length > 0) window.localStorage.setItem(CLAVES.movimientos, JSON.stringify(arr));
+        }
+        const dataGastos = resultados[3].val();
+        if(dataGastos){
+            const arr = Object.values(dataGastos).filter(function(x){ return x !== null; });
+            if(arr.length > 0) window.localStorage.setItem(CLAVES.gastos, JSON.stringify(arr));
         }
         mostrarResumenDia();
         botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
