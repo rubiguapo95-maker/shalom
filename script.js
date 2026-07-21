@@ -139,32 +139,43 @@ const botonSyncNube         = document.getElementById("sincronizarDesdeNube");
 
 // Botón sincronizar desde nube
 botonSyncNube.addEventListener("click", function(){
-    if(!confirm("¿Deseas bajar todos los pedidos desde la nube?\n\nEsto reemplazará los datos locales de este dispositivo.")) return;
+    if(!confirm("¿Deseas bajar todos los datos desde la nube?\n\nEsto actualizará pedidos y garantías.")) return;
     botonSyncNube.textContent = "⏳ Sincronizando...";
     botonSyncNube.disabled = true;
-    db.ref("pedidos").once("value").then(function(snap){
-        const data = snap.val();
-        if(data){
-            const arr = Object.values(data).filter(function(x){ return x !== null; });
-            window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
-            // Reconstruir lista de clientes desde los pedidos
-            reconstruirClientes(arr);
-            mostrarResumenDia();
-            botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
-            botonSyncNube.disabled = false;
-            alert("✅ " + arr.length + " pedidos sincronizados correctamente.");
-        } else {
-            alert("No hay datos en la nube.");
-            botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
-            botonSyncNube.disabled = false;
+
+    Promise.all([
+        db.ref("pedidos").once("value"),
+        db.ref("garantias").once("value")
+    ]).then(function(resultados){
+        const dataPedidos = resultados[0].val();
+        let totalPedidos = 0;
+        if(dataPedidos){
+            const arr = Object.values(dataPedidos).filter(function(x){ return x !== null; });
+            if(arr.length > 0){
+                window.localStorage.setItem(CLAVES.pedidos, JSON.stringify(arr));
+                reconstruirClientes(arr);
+                totalPedidos = arr.length;
+            }
         }
+        const dataGarantias = resultados[1].val();
+        let totalGarantias = 0;
+        if(dataGarantias){
+            const arr = Object.values(dataGarantias).filter(function(x){ return x !== null; });
+            if(arr.length > 0){
+                window.localStorage.setItem(CLAVES.garantias, JSON.stringify(arr));
+                totalGarantias = arr.length;
+            }
+        }
+        mostrarResumenDia();
+        botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
+        botonSyncNube.disabled = false;
+        alert("✅ " + totalPedidos + " pedidos y " + totalGarantias + " garantías sincronizadas.");
     }).catch(function(e){
-        alert("Error al sincronizar: " + e.message);
+        alert("Error: " + e.message);
         botonSyncNube.textContent = "☁️ Sincronizar desde la nube";
         botonSyncNube.disabled = false;
     });
-});
-const resumenDiaDiv         = document.getElementById("resumenDia");
+});const resumenDiaDiv         = document.getElementById("resumenDia");
 const importarBtn           = document.getElementById("importarExcelBtn");
 const archivoExcel          = document.getElementById("archivoExcel");
 const botonIrGarantia       = document.getElementById("irGarantia");
