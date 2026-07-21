@@ -223,14 +223,12 @@
 
     <script src="script.js"></script>
     <script>
-        // Desregistrar Service Worker para evitar problemas de caché
         if("serviceWorker" in navigator){
-            navigator.serviceWorker.getRegistrations().then(function(regs){
-                regs.forEach(function(r){ r.unregister(); });
-            });
-            caches.keys().then(function(keys){
-                keys.forEach(function(k){ caches.delete(k); });
-            });
+            navigator.serviceWorker.register("./sw.js")
+                .then(function(reg){
+                    reg.update(); // Forzar actualización cada vez
+                })
+                .catch(function(e){ console.log("SW error:", e); });
         }
     </script>
 </body>
